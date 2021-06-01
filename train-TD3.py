@@ -147,8 +147,14 @@ if __name__ == "__main__":
             episode_num += 1
 
         # Evaluate episode
-        if (t + 1) % args.eval_freq == 0:
-            evaluations.append(eval_policy(policy, args.env, args.seed))
-            np.save(f"./results/{file_name}", evaluations)
-            if args.save_model:
-                policy.save(f"./models/{file_name}")
+        # evaluation is based on number of time steps.
+        # Let's change this and re-rerun.
+
+        # let's do this only when it's a done...
+            if (episode_num + 1) % 10 == 0:
+                evaluations.append(eval_policy(policy, args.env, args.seed))
+                np.save(f"./results/{file_name}", evaluations)
+                # ./results/filename contains a list of evaluations every 10 episodes.
+                # leter to plot, we just create a list of multiples of 10...
+                if args.save_model and (episode_num + 1) % 100:
+                    policy.save(f"./models/{file_name}_{episode_num+1}")
