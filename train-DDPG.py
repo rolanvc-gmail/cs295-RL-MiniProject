@@ -5,7 +5,7 @@ import argparse
 import os
 
 import utils
-import TD3
+# import TD3
 import OurDDPG
 import DDPG
 
@@ -35,7 +35,7 @@ def eval_policy(policy, env_name, seed, eval_episodes=10):
 if __name__ == "__main__":
 
     parser = argparse.ArgumentParser()
-    parser.add_argument("--policy", default="TD3")  # Policy name (TD3, DDPG or OurDDPG)
+    parser.add_argument("--policy", default="DDPG")  # Policy name (TD3, DDPG or OurDDPG)
     parser.add_argument("--env", default="BipedalWalker-v3")  # OpenAI gym environment name
     parser.add_argument("--seed", default=0, type=int)  # Sets Gym, PyTorch and Numpy seeds
     parser.add_argument("--start_timesteps", default=25e3, type=int)  # Time steps initial random policy is used
@@ -80,15 +80,13 @@ if __name__ == "__main__":
               "max_action": max_action,
               "discount": args.discount,
               "tau": args.tau,
-              "policy_noise": args.policy_noise * max_action,
-              "noise_clip": args.noise_clip * max_action,
-              "policy_freq": args.policy_freq}
+            }
 
     # Initialize policy
     # Target policy smoothing is scaled wrt the action scale
     # Step 1: Initialize critic and actor networks
     # Step 2: Initialize target networks
-    policy = TD3.TD3(**kwargs)
+    policy = OurDDPG.DDPG(**kwargs)
 
     if args.load_model != "":
         policy_file = file_name if args.load_model == "default" else args.load_model
@@ -147,8 +145,14 @@ if __name__ == "__main__":
             episode_num += 1
 
         # Evaluate episode
-        if (t + 1) % args.eval_freq == 0:
-            evaluations.append(eval_policy(policy, args.env, args.seed))
-            np.save(f"./results/{file_name}", evaluations)
-            if args.save_model:
-                policy.save(f"./models/{file_name}")
+        # evaluation is based on number of time steps.
+        # Let's change this and re-rerun.
+
+        # let's do this only when it's a done...
+            if (episode_num + 1) % 10 == 0:
+                evaluations.append(eval_policy(policy, args.env, args.seed))
+                np.save(f"./results/{file_name}", evaluations)
+                # ./results/filename contains a list of evaluations every 10 episodes.
+                # leter to plot, we just create a list of multiples of 10...
+                if args.save_model and (episode_num + 1) % 100:
+                    policy.save(f"./models/{file_name}_{episode_num+1}")
