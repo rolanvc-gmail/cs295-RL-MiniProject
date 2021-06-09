@@ -6,9 +6,9 @@ import os
 
 import utils
 import TD3
-import OurDDPG
 import DDPG
-
+import DDPG
+import datetime
 
 # Runs policy for X episodes and returns average reward
 # A fixed seed is used for the eval environment
@@ -33,6 +33,9 @@ def eval_policy(policy, env_name, seed, eval_episodes=10):
 
 
 if __name__ == "__main__":
+
+    starttime = datetime.datetime.now()
+    print(f"Starting at:{starttime}")
 
     parser = argparse.ArgumentParser()
     parser.add_argument("--policy", default="TD3")  # Policy name (TD3, DDPG or OurDDPG)
@@ -111,8 +114,7 @@ if __name__ == "__main__":
 
         episode_timesteps += 1
 
-        # Step 5: Select Action wih exploration noise
-        # Select action randomly or according to policy
+        # Step 5a: Select Action wih exploration noise
         if t < args.start_timesteps:
             action = env.action_space.sample()
         else:
@@ -121,7 +123,7 @@ if __name__ == "__main__":
                     + np.random.normal(0, max_action * args.expl_noise, size=action_dim)
             ).clip(-max_action, max_action)
 
-        # Perform action
+        # Step  5b: Perform action and observe reward and new state
         next_state, reward, done, _ = env.step(action)
         done_bool = float(done) if episode_timesteps < env._max_episode_steps else 0
 
@@ -132,7 +134,7 @@ if __name__ == "__main__":
         episode_reward += reward
 
         # Train agent after collecting sufficient data
-        # Steps 7- seems to be inside of policy.train().
+        # Steps 7-11 are inside of policy.train().
         if t >= args.start_timesteps:
             policy.train(replay_buffer, args.batch_size)
 
@@ -157,4 +159,9 @@ if __name__ == "__main__":
                 # ./results/filename contains a list of evaluations every 10 episodes.
                 # leter to plot, we just create a list of multiples of 10...
                 if args.save_model and (episode_num + 1) % 100:
-                    policy.save(f"./models/{file_name}_{episode_num+1}")
+                    policy.save(f"./models/{file_name}_commented_0")
+
+    endtime = datetime.datetime.now()
+    timediff = endtime - starttime
+    print(f"Ending at:{endtime}")
+    print(f"Difference: {timediff}")

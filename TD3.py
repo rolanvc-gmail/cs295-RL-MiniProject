@@ -104,11 +104,11 @@ class TD3(object):
 	def train(self, replay_buffer, batch_size=256):
 		self.total_it += 1
 
-		# Sample replay buffer 
+		# Step 7: Sample replay buffer
 		state, action, next_state, reward, not_done = replay_buffer.sample(batch_size)
 
 		with torch.no_grad():
-			# Select action according to policy and add clipped noise
+			# Step 8: Select action according to policy and add clipped noise
 			noise = (
 				torch.randn_like(action) * self.policy_noise
 			).clamp(-self.noise_clip, self.noise_clip)
@@ -117,7 +117,7 @@ class TD3(object):
 				self.actor_target(next_state) + noise
 			).clamp(-self.max_action, self.max_action)
 
-			# Compute the target Q value
+			# Step 8: Compute the target Q value with the minimum of the outputs of the  two critic networks
 			target_Q1, target_Q2 = self.critic_target(next_state, next_action)
 			target_Q = torch.min(target_Q1, target_Q2)
 			target_Q = reward + not_done * self.discount * target_Q
@@ -125,9 +125,8 @@ class TD3(object):
 		# Get current Q estimates
 		current_Q1, current_Q2 = self.critic(state, action)
 
-		# Compute critic loss
+		# Step 10: Update critics
 		critic_loss = F.mse_loss(current_Q1, target_Q) + F.mse_loss(current_Q2, target_Q)
-
 		# Optimize the critic
 		self.critic_optimizer.zero_grad()
 		critic_loss.backward()
@@ -136,7 +135,7 @@ class TD3(object):
 		# Delayed policy updates
 		if self.total_it % self.policy_freq == 0:
 
-			# Compute actor losse
+			# Compute actor loss
 			actor_loss = -self.critic.Q1(state, self.actor(state)).mean()
 			
 			# Optimize the actor 
