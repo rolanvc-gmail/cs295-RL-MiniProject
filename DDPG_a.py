@@ -7,8 +7,7 @@ import torch.nn.functional as F
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 print("OurDDPG Device is:{}".format(device))
-# Re-tuned version of Deep Deterministic Policy Gradients (DDPG)
-# Paper: https://arxiv.org/abs/1509.02971
+# Deep Deterministic Policy Gradients (DDPG) + Clipped DoubleQ
 
 
 class Actor(nn.Module):
@@ -32,18 +31,40 @@ class Critic(nn.Module):
 	def __init__(self, state_dim, action_dim):
 		super(Critic, self).__init__()
 
+		# Q1 architecture
 		self.l1 = nn.Linear(state_dim + action_dim, 256)
 		self.l2 = nn.Linear(256, 256)
 		self.l3 = nn.Linear(256, 1)
 
+		# Q2 architecture
+		self.l4 = nn.Linear(state_dim + action_dim, 256)
+		self.l5 = nn.Linear(256, 256)
+		self.l6 = nn.Linear(256, 1)
 
 	def forward(self, state, action):
-		q = F.relu(self.l1(torch.cat([state, action], 1)))
-		q = F.relu(self.l2(q))
-		return self.l3(q)
+		# q = F.relu(self.l1(torch.cat([state, action], 1)))
+		# q = F.relu(self.l2(q))
+		# return self.l3(q)
+		sa = torch.cat([state, action], 1)
 
+		q1 = F.relu(self.l1(sa))
+		q1 = F.relu(self.l2(q1))
+		q1 = self.l3(q1)
 
-class DDPG(object):
+		q2 = F.relu(self.l4(sa))
+		q2 = F.relu(self.l5(q2))
+		q2 = self.l6(q2)
+		return q1, q2
+
+	def Q1(self, state, action):
+		sa = torch.cat([state, action], 1)
+
+		q1 = F.relu(self.l1(sa))
+		q1 = F.relu(self.l2(q1))
+		q1 = self.l3(q1)
+		return q1
+
+class DDPG_a(object):
 	def __init__(self, state_dim, action_dim, max_action, discount=0.99, tau=0.005):
 		self.actor = Actor(state_dim, action_dim, max_action).to(device)
 		self.actor_target = copy.deepcopy(self.actor)
@@ -67,26 +88,27 @@ class DDPG(object):
 		# Sample replay buffer 
 		state, action, next_state, reward, not_done = replay_buffer.sample(batch_size)
 
-		# Compute the target Q value
-		# Step 12 is Set y_i = r_i + \gamma Q'(s_{i+1}, mu'(s_{i+1} | theta) | \theta^Q')
-		# target_Q will first be Q'(s_{i+1}, mu'(s_{i+1} | theta) | theta^Q')
-		target_Q = self.critic_target(next_state, self.actor_target(next_state))
-		# target_Q will now be r_i + \gamma ....
-		target_Q = reward + (not_done * self.discount * target_Q).detach()
+		with torch.no_grad():
+			# Step 8: Select action according to policy and add clipped noise
+			next_action = self.actor_target(next_state)
 
-		# Get current Q estimate
-		current_Q = self.critic(state, action)
+			# Step 8: Compute the target Q value with the minimum of the outputs of the  two critic networks
+			target_Q1, target_Q2 = self.critic_target(next_state, next_action)
+			target_Q = torch.min(target_Q1, target_Q2)
+			target_Q = reward + not_done * self.discount * target_Q
 
-		# Compute critic loss
-		# Step 13: Update critic by minimizing the MSE loss
-		# the loss is the MSE between current_Q and target_Q
-		critic_loss = F.mse_loss(current_Q, target_Q)
+		# Get current Q estimates
+		current_Q1, current_Q2 = self.critic(state, action)
+
+		# Step 10: Update critics
+		critic_loss = F.mse_loss(current_Q1, target_Q) + F.mse_loss(current_Q2, target_Q)
+		# Optimize the critic
 		self.critic_optimizer.zero_grad()
 		critic_loss.backward()
 		self.critic_optimizer.step()
 
 		# Compute actor loss
-		actor_loss = -self.critic(state, self.actor(state)).mean()
+		actor_loss = -self.critic.Q1(state, self.actor(state)).mean()
 		
 		# Optimize the actor 
 		self.actor_optimizer.zero_grad()
