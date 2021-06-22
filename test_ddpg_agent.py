@@ -7,7 +7,7 @@ import argparse
 
 
 parser = argparse.ArgumentParser()
-parser.add_argument("--policy", default="TD3")  # Policy name (TD3, DDPG or OurDDPG)
+parser.add_argument("--policy", default="DDPG")  # Policy name (TD3, DDPG or OurDDPG)
 parser.add_argument("--env", default="BipedalWalker-v3")  # OpenAI gym environment name
 parser.add_argument("--seed", default=0, type=int)  # Sets Gym, PyTorch and Numpy seeds
 parser.add_argument("--start_timesteps", default=25e3, type=int)  # Time steps initial random policy is used
@@ -50,7 +50,7 @@ kwargs = {"state_dim": state_dim,
           "noise_clip": args.noise_clip * max_action,
           "policy_freq": args.policy_freq}
 
-# Initialize policy
+# Initialize p
 # Target policy smoothing is scaled wrt the action scale
 # Step 1: Initialize critic and actor networks
 # Step 2: Initialize target networks

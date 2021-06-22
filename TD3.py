@@ -55,7 +55,6 @@ class Critic(nn.Module):
 		q2 = self.l6(q2)
 		return q1, q2
 
-
 	def Q1(self, state, action):
 		sa = torch.cat([state, action], 1)
 
