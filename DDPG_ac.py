@@ -64,7 +64,7 @@ class Critic(nn.Module):
 		q1 = self.l3(q1)
 		return q1
 
-class DDPG_abc(object):
+class DDPG_ac(object):
 	def __init__(self, state_dim, action_dim, max_action, discount=0.99, tau=0.005, policy_noise=0.2, noise_clip=0.5, policy_freq=2):
 		self.actor = Actor(state_dim, action_dim, max_action).to(device)
 		self.actor_target = copy.deepcopy(self.actor)
@@ -97,11 +97,8 @@ class DDPG_abc(object):
 
 		with torch.no_grad():
 			# Step 8: Select action according to policy and add clipped noise
-			noise = (
-					torch.randn_like(action) * self.policy_noise
-			).clamp(-self.noise_clip, self.noise_clip)
 			next_action = (
-					self.actor_target(next_state)+ noise
+					self.actor_target(next_state)
 			).clamp(-self.max_action, self.max_action)
 
 			# Step 8: Compute the target Q value with the minimum of the outputs of the  two critic networks

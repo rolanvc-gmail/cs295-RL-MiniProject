@@ -74,6 +74,7 @@ class DDPG_a(object):
 		self.critic_target = copy.deepcopy(self.critic)
 		self.critic_optimizer = torch.optim.Adam(self.critic.parameters(), lr=3e-4)
 
+		self.max_action = max_action
 		self.discount = discount
 		self.tau = tau
 
@@ -90,7 +91,9 @@ class DDPG_a(object):
 
 		with torch.no_grad():
 			# Step 8: Select action according to policy and add clipped noise
-			next_action = self.actor_target(next_state)
+			next_action = (
+				self.actor_target(next_state)
+			).clamp(-self.max_action, self.max_action)
 
 			# Step 8: Compute the target Q value with the minimum of the outputs of the  two critic networks
 			target_Q1, target_Q2 = self.critic_target(next_state, next_action)

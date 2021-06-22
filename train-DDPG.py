@@ -3,12 +3,9 @@ import torch
 import gym
 import argparse
 import os
-
+import datetime
 import utils
-# import TD3
-import OurDDPG
 import DDPG
-
 
 # Runs policy for X episodes and returns average reward
 # A fixed seed is used for the eval environment
@@ -33,6 +30,8 @@ def eval_policy(policy, env_name, seed, eval_episodes=10):
 
 
 if __name__ == "__main__":
+    starttime = datetime.datetime.now()
+    print(f"Starting at:{starttime}")
 
     parser = argparse.ArgumentParser()
     parser.add_argument("--policy", default="DDPG")  # Policy name (TD3, DDPG or OurDDPG)
@@ -80,13 +79,17 @@ if __name__ == "__main__":
               "max_action": max_action,
               "discount": args.discount,
               "tau": args.tau,
-            }
+              # "policy_noise": args.policy_noise * max_action,
+              # "noise_clip": args.noise_clip * max_action,
+              # "policy_freq": args.policy_freq
+              }
+
 
     # Initialize policy
     # Target policy smoothing is scaled wrt the action scale
     # Step 1: Initialize critic and actor networks
     # Step 2: Initialize target networks
-    policy = OurDDPG.DDPG(**kwargs)
+    policy = DDPG.DDPG(**kwargs)
 
     if args.load_model != "":
         policy_file = file_name if args.load_model == "default" else args.load_model
@@ -110,7 +113,6 @@ if __name__ == "__main__":
         episode_timesteps += 1
 
         # Step 5: Select Action wih exploration noise
-        # Select action randomly or according to policy
         if t < args.start_timesteps:
             action = env.action_space.sample()
         else:
@@ -151,8 +153,13 @@ if __name__ == "__main__":
         # let's do this only when it's a done...
             if (episode_num + 1) % 10 == 0:
                 evaluations.append(eval_policy(policy, args.env, args.seed))
-                np.save(f"./results/{file_name}", evaluations)
+                np.save(f"./results/{file_name}_commented", evaluations)
                 # ./results/filename contains a list of evaluations every 10 episodes.
                 # leter to plot, we just create a list of multiples of 10...
                 if args.save_model and (episode_num + 1) % 100:
-                    policy.save(f"./models/{file_name}_{episode_num+1}")
+                    policy.save(f"./models/{file_name}")
+
+    endtime = datetime.datetime.now()
+    timediff = endtime - starttime
+    print(f"Ending at:{endtime}")
+    print(f"Difference: {timediff}")

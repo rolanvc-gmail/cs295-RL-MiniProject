@@ -1,4 +1,8 @@
-
+import argparse
+import torch
+from tensorboardX import SummaryWriter
+import gym
+from A2C import AdvantageActorCritic
 
 def main():
     parser = argparse.ArgumentParser()
@@ -7,11 +11,10 @@ def main():
     args = parser.parse_args()
     device = torch.device("cuda" if args.cuda else "cpu")
 
-    make_env = lambda: ptan.common.wrappers.wrap_dqn(gym.make("PongNoFrameskip-v4"))
-    envs = [make_env() for _ in range(NUM_ENVS)]
+    env = gym.make("BipedalWalker-v3")
     writer = SummaryWriter(comment="-pong-a2c_" + args.name)
 
-    net = AtariA2C(envs[0].observation_space.shape, envs[0].action_space.n).to(device)
+    net = AdvantageActorCritic(env[0].observation_space.shape, env[0].action_space.n).to(device)
     print(net)
 
     agent = ptan.agent.PolicyAgent(lambda x: net(x)[0], apply_softmax=True, device=device)

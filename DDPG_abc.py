@@ -64,8 +64,8 @@ class Critic(nn.Module):
 		q1 = self.l3(q1)
 		return q1
 
-class DDPG_ab(object):
-	def __init__(self, state_dim, action_dim, max_action, discount=0.99, tau=0.005, policy_noise=0.2, noise_clip=0.5):
+class DDPG_abc(object):
+	def __init__(self, state_dim, action_dim, max_action, discount=0.99, tau=0.005, policy_noise=0.2, noise_clip=0.5, policy_freq=2):
 		self.actor = Actor(state_dim, action_dim, max_action).to(device)
 		self.actor_target = copy.deepcopy(self.actor)
 		self.actor_optimizer = torch.optim.Adam(self.actor.parameters(), lr=3e-4)
@@ -80,6 +80,8 @@ class DDPG_ab(object):
 
 		self.policy_noise = policy_noise
 		self.noise_clip = noise_clip
+		self.policy_freq = policy_freq
+		self.total_it = 0
 
 	def select_action(self, state):
 		state = torch.FloatTensor(state.reshape(1, -1)).to(device)
@@ -87,6 +89,8 @@ class DDPG_ab(object):
 
 
 	def train(self, replay_buffer, batch_size=256):
+		self.total_it += 1
+
 		# Step 10 Sample the replay buffer
 		# Sample replay buffer 
 		state, action, next_state, reward, not_done = replay_buffer.sample(batch_size)
@@ -115,21 +119,24 @@ class DDPG_ab(object):
 		critic_loss.backward()
 		self.critic_optimizer.step()
 
-		# Compute actor loss
-		actor_loss = -self.critic.Q1(state, self.actor(state)).mean()
+		# Delayed policy updates
+		if self.total_it % self.policy_freq == 0:
+
+			# Compute actor loss
+			actor_loss = -self.critic.Q1(state, self.actor(state)).mean()
 		
-		# Optimize the actor 
-		self.actor_optimizer.zero_grad()
-		actor_loss.backward()
-		self.actor_optimizer.step()
+			# Optimize the actor
+			self.actor_optimizer.zero_grad()
+			actor_loss.backward()
+			self.actor_optimizer.step()
 
 		# Step 16: Update the target networks using soft updates.
 		# Update the frozen target models
-		for param, target_param in zip(self.critic.parameters(), self.critic_target.parameters()):
-			target_param.data.copy_(self.tau * param.data + (1 - self.tau) * target_param.data)
+			for param, target_param in zip(self.critic.parameters(), self.critic_target.parameters()):
+				target_param.data.copy_(self.tau * param.data + (1 - self.tau) * target_param.data)
 
-		for param, target_param in zip(self.actor.parameters(), self.actor_target.parameters()):
-			target_param.data.copy_(self.tau * param.data + (1 - self.tau) * target_param.data)
+			for param, target_param in zip(self.actor.parameters(), self.actor_target.parameters()):
+				target_param.data.copy_(self.tau * param.data + (1 - self.tau) * target_param.data)
 
 
 	def save(self, filename):
