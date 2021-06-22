@@ -3,12 +3,9 @@ import torch
 import gym
 import argparse
 import os
-
+import datetime
 import utils
-import TD3
-import DDPG
-import DDPGold
-
+import DDPG_abc
 
 # Runs policy for X episodes and returns average reward
 # A fixed seed is used for the eval environment
@@ -33,9 +30,11 @@ def eval_policy(policy, env_name, seed, eval_episodes=10):
 
 
 if __name__ == "__main__":
+    starttime = datetime.datetime.now()
+    print(f"Starting at:{starttime}")
 
     parser = argparse.ArgumentParser()
-    parser.add_argument("--policy", default="DDPG")  # Policy name (TD3, DDPG or OurDDPG)
+    parser.add_argument("--policy", default="DDPG_abc_b1e5")  # Policy name (TD3, DDPG or OurDDPG)
     parser.add_argument("--env", default="BipedalWalker-v3")  # OpenAI gym environment name
     parser.add_argument("--seed", default=0, type=int)  # Sets Gym, PyTorch and Numpy seeds
     parser.add_argument("--start_timesteps", default=25e3, type=int)  # Time steps initial random policy is used
@@ -71,7 +70,6 @@ if __name__ == "__main__":
     torch.manual_seed(args.seed)
     np.random.seed(args.seed)
 
-    # gather info from the environment.
     state_dim = env.observation_space.shape[0]
     action_dim = env.action_space.shape[0]
     max_action = float(env.action_space.high[0])
@@ -81,12 +79,17 @@ if __name__ == "__main__":
               "max_action": max_action,
               "discount": args.discount,
               "tau": args.tau,
+              # "policy_noise": args.policy_noise * max_action,
+              # "noise_clip": args.noise_clip * max_action,
+              # "policy_freq": args.policy_freq
               }
 
-    # Initialize DDPG policy. This already contains both critic and actor network and target networks.
-    # Step 1:  Randomly initialize critic and actor networks
+
+    # Initialize policy
+    # Target policy smoothing is scaled wrt the action scale
+    # Step 1: Initialize critic and actor networks
     # Step 2: Initialize target networks
-    policy = DDPGold.DDPG(**kwargs)
+    policy = DDPG_abc.DDPG_abc(**kwargs)
 
     if args.load_model != "":
         policy_file = file_name if args.load_model == "default" else args.load_model
@@ -94,36 +97,35 @@ if __name__ == "__main__":
         policy.load(f"./models/{policy_file}")
 
     #Step 3: Initialize Replay Buffer
-    replay_buffer = utils.ReplayBuffer(state_dim, action_dim)
+    replay_buffer = utils.ReplayBuffer(state_dim, action_dim, max_size=int(1e5))
 
-    # Evaluate untrained policy. We'll save all average rewards in this array.
+    # Evaluate untrained policy
     evaluations = [eval_policy(policy, args.env, args.seed)]
-    episodes = []
 
-    # other initializations
     state, done = env.reset(), False
     episode_reward = 0
     episode_timesteps = 0
     episode_num = 0
 
-    # Step 4: for t=1 to M do:
+    # Step 4: for t=1 to T do:
     for t in range(int(args.max_timesteps)):
 
         episode_timesteps += 1
 
-        # Step 5: Initialize a random process N for action exploration
-        # Step 8: Selection action according to policy + noise exploration value.
-        action = (
-            policy.select_action(np.array(state))
-            # instead of the original Uhlenbeck-Ornstein, we just use gaussian
-            + np.random.normal(0, max_action * args.expl_noise, size=action_dim)
+        # Step 5: Select Action wih exploration noise
+        if t < args.start_timesteps:
+            action = env.action_space.sample()
+        else:
+            action = (
+                    policy.select_action(np.array(state))
+                    + np.random.normal(0, max_action * args.expl_noise, size=action_dim)
             ).clip(-max_action, max_action)
 
-        # Step 9 Execute Action
+        # Perform action
         next_state, reward, done, _ = env.step(action)
         done_bool = float(done) if episode_timesteps < env._max_episode_steps else 0
 
-        # Step 10: Store transition tuple (s, a, r, s) in replay buffer.
+        # Step 6: Store transition tuple (s, a, r, s) in replay buffer.  Store data in replay buffer
         replay_buffer.add(state, action, next_state, reward, done_bool)
 
         state = next_state
@@ -145,12 +147,21 @@ if __name__ == "__main__":
             episode_num += 1
 
         # Evaluate episode
-        # args.eval_frequency defaults to 5000
-        # So every 5000 timesteps (or the last time step),
-        # we append to the evaluations array the ave rewards, and we append the current episode count.
-        if ((t + 1) % args.eval_freq == 0) or (t == args.max_timesteps):
-            evaluations.append(eval_policy(policy, args.env, args.seed))
-            episodes.append(episode_num + 1)
-            np.save(f"./results/{file_name}_{episode_num+1}", evaluations)
-            if (args.save_model and (episode_num + 1) % 100 == 0) or (t == args.max_timesteps):
-                policy.save(f"./models/{file_name}_{episode_num+1}")
+        # evaluation is based on number of time steps.
+        # Let's change this and re-rerun.
+
+        # let's do this only when it's a done...
+            if (episode_num + 1) % 10 == 0:
+                evaluations.append(eval_policy(policy, args.env, args.seed))
+                resultsfile = f"./results/{file_name}_b1e5"
+                print(f"saving file...{resultsfile}")
+                np.save(resultsfile, evaluations)
+                # ./results/filename contains a list of evaluations every 10 episodes.
+                # leter to plot, we just create a list of multiples of 10...
+                if args.save_model and (episode_num + 1) % 100:
+                    policy.save(f"./models/{file_name}")
+
+    endtime = datetime.datetime.now()
+    timediff = endtime - starttime
+    print(f"Ending at:{endtime}")
+    print(f"Difference: {timediff}")

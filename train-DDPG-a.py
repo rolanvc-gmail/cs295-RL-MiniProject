@@ -79,8 +79,8 @@ if __name__ == "__main__":
               "max_action": max_action,
               "discount": args.discount,
               "tau": args.tau,
-               "policy_noise": args.policy_noise * max_action,
-               "noise_clip": args.noise_clip * max_action,
+              # "policy_noise": args.policy_noise * max_action,
+              # "noise_clip": args.noise_clip * max_action,
               # "policy_freq": args.policy_freq
               }
 

@@ -5,7 +5,7 @@ import argparse
 import os
 import datetime
 import utils
-import DDPG_ab
+import DDPG_abc
 
 # Runs policy for X episodes and returns average reward
 # A fixed seed is used for the eval environment
@@ -34,7 +34,7 @@ if __name__ == "__main__":
     print(f"Starting at:{starttime}")
 
     parser = argparse.ArgumentParser()
-    parser.add_argument("--policy", default="DDPG_ab")  # Policy name (TD3, DDPG or OurDDPG)
+    parser.add_argument("--policy", default="DDPG_abc")  # Policy name (TD3, DDPG or OurDDPG)
     parser.add_argument("--env", default="BipedalWalker-v3")  # OpenAI gym environment name
     parser.add_argument("--seed", default=0, type=int)  # Sets Gym, PyTorch and Numpy seeds
     parser.add_argument("--start_timesteps", default=25e3, type=int)  # Time steps initial random policy is used
@@ -89,7 +89,7 @@ if __name__ == "__main__":
     # Target policy smoothing is scaled wrt the action scale
     # Step 1: Initialize critic and actor networks
     # Step 2: Initialize target networks
-    policy = DDPG_ab.DDPG_ab(**kwargs)
+    policy = DDPG_abc.DDPG_abc(**kwargs)
 
     if args.load_model != "":
         policy_file = file_name if args.load_model == "default" else args.load_model

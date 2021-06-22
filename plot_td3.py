@@ -2,7 +2,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 
-td3_data = np.load("./results/TD3_BipedalWalker-v3_0.npy")
+td3_data = np.load("./results/TD3_BipedalWalker-base.npy")
 ddpg_data = np.load("./results/DDPG_BipedalWalker-v3_0.npy")
 td3_len = td3_data.size # 118 elements
 ddpg_len = ddpg_data.size #116
@@ -18,5 +18,5 @@ plt.ylabel('ave rewards')
 
 plt.legend()
 plt.grid()
-plt.savefig('./plots/td3_vs_ddpg_ave_rewards_vs_eps.png')
+# plt.savefig('./plots/td3_vs_ddpg_ave_rewards_vs_eps.png')
 plt.show()
